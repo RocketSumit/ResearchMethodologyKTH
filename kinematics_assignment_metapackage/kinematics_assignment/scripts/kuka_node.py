@@ -20,24 +20,30 @@ filename = '/home/p/a/patidar/catkin_ws/src/ResearchMethodologyKTH/Data/kuka_lin
 def output(filename, points_list, orientation_list, joint_list, curr_pos_list, curr_or_list, error_list):
     workbook = xlsxwriter.Workbook(filename)
     sh_tp = workbook.add_worksheet("target_pose")
+    cell_format_pos = workbook.add_format(
+        {'bold': True, 'font_color': 'green'})
+    cell_format_or = workbook.add_format(
+        {'bold': True, 'font_color': 'red'})
+    cell_format_q = workbook.add_format(
+        {'bold': True, 'font_color': 'black'})
 
     position = ['Tx', 'Ty', 'Tz']
 
-    orientation = ['Tr11', 'Tr12', 'Tr13',
-                   'Tr21', 'Tr22', 'Tr23', 'Tr31', 'Tr32', 'Tr33']
+    orientation = ['r11', 'r12', 'r13',
+                   'r21', 'r22', 'r23', 'r31', 'r32', 'r33']
 
     joint_angles = ['q1', 'q2', 'q3', 'q4', 'q5', 'q6', 'q7']
 
-    actual_position = ['Ax', 'Ay', 'Az']
+    actual_position = ['Tx', 'Ty', 'Tz']
 
-    actual_orientation = ['Ar11', 'Ar12', 'Ar13',
-                          'Ar21', 'Ar22', 'Ar23', 'Ar31', 'Ar32', 'Ar33']
+    actual_orientation = ['r11', 'r12', 'r13',
+                          'r21', 'r22', 'r23', 'r31', 'r32', 'r33']
     error = ['ex', 'ey', 'ez', 'etheta1', 'etheta2', 'etheta3']
 
     for n, v in enumerate(position):
-        sh_tp.write(0, n, v)
+        sh_tp.write(0, n, v, cell_format_pos)
     for n, v in enumerate(orientation):
-        sh_tp.write(0, n+3, v)
+        sh_tp.write(0, n+3, v, cell_format_or)
 
     for ind, val in enumerate(points_list, 1):
         sh_tp.write(ind, 0, val[0])
@@ -67,7 +73,7 @@ def output(filename, points_list, orientation_list, joint_list, curr_pos_list, c
 
     sh_q = workbook.add_worksheet("joint_angles")
     for n, v in enumerate(joint_angles):
-        sh_q.write(0, n, v)
+        sh_q.write(0, n, v, cell_format_q)
 
     for ind, val in enumerate(joint_list, 1):
         sh_q.write(ind, 0, val[0])
@@ -87,9 +93,9 @@ def output(filename, points_list, orientation_list, joint_list, curr_pos_list, c
     sh_cp = workbook.add_worksheet("current_pose")
 
     for n, v in enumerate(actual_position):
-        sh_cp.write(0, n, v)
+        sh_cp.write(0, n, v, cell_format_pos)
     for n, v in enumerate(actual_orientation):
-        sh_cp.write(0, n+3, v)
+        sh_cp.write(0, n+3, v, cell_format_or)
 
     for ind, val in enumerate(curr_pos_list, 1):
         sh_cp.write(ind, 0, val[0])
@@ -111,7 +117,7 @@ def output(filename, points_list, orientation_list, joint_list, curr_pos_list, c
 
     sh_er = workbook.add_worksheet("error")
     for n, v in enumerate(error):
-        sh_er.write(0, n, v)
+        sh_er.write(0, n, v, cell_format_or)
 
     for ind, val in enumerate(error_list, 1):
         sh_er.write(ind, 0, val[0])
