@@ -14,7 +14,7 @@ import IK_functions
 from sensor_msgs.msg import JointState
 from std_srvs.srv import EmptyResponse, EmptyRequest, Empty
 
-filename = '/home/p/a/patidar/catkin_ws/src/ResearchMethodologyKTH/Data/kuka_line.xlsx'
+filename = '/home/p/a/patidar/catkin_ws/src/ResearchMethodologyKTH/Data/kuka_square.xlsx'
 
 
 def output(filename, points_list, orientation_list, joint_list, curr_pos_list, curr_or_list, error_list):
@@ -136,7 +136,7 @@ def output(filename, points_list, orientation_list, joint_list, curr_pos_list, c
     return 0
 
 
-def main(path='line'):
+def main(path='square'):
     rospy.init_node('kuka_node')
     rate = rospy.Rate(10)
 
