@@ -17,9 +17,9 @@ from std_srvs.srv import EmptyResponse, EmptyRequest, Empty
 filename = '/home/p/a/patidar/catkin_ws/src/ResearchMethodologyKTH/Data/kuka_line.xlsx'
 
 
-def output(filename, sheet, points_list, orientation_list, joint_list, curr_pos_list, curr_or_list, error_list):
+def output(filename, points_list, orientation_list, joint_list, curr_pos_list, curr_or_list, error_list):
     workbook = xlsxwriter.Workbook(filename)
-    sh = workbook.add_worksheet(sheet)
+    sh_tp = workbook.add_worksheet("target_pose")
 
     position = ['Tx', 'Ty', 'Tz']
 
@@ -35,110 +35,102 @@ def output(filename, sheet, points_list, orientation_list, joint_list, curr_pos_
     error = ['ex', 'ey', 'ez', 'etheta1', 'etheta2', 'etheta3']
 
     for n, v in enumerate(position):
-        sh.write(0, n, v)
+        sh_tp.write(0, n, v)
     for n, v in enumerate(orientation):
-        sh.write(0, n+3, v)
-    for n, v in enumerate(joint_angles):
-        sh.write(0, n+12, v)
-    for n, v in enumerate(actual_position):
-        sh.write(0, n+19, v)
-    for n, v in enumerate(actual_orientation):
-        sh.write(0, n+22, v)
-    for n, v in enumerate(error):
-        sh.write(0, n+25, v)
+        sh_tp.write(0, n+3, v)
 
-    col = 0
     for ind, val in enumerate(points_list, 1):
-        sh.write(ind, col, val[0])
-        col += 1
-        sh.write(ind, col, val[1])
-        col += 1
-        sh.write(ind, col, val[2])
-        col += 1
+        sh_tp.write(ind, 0, val[0])
+
+        sh_tp.write(ind, 1, val[1])
+
+        sh_tp.write(ind, 2, val[2])
 
     for ind, val in enumerate(orientation_list, 1):
-        sh.write(ind, col, val[0][0])
-        col += 1
-        sh.write(ind, col, val[0][1])
-        col += 1
-        sh.write(ind, col, val[0][2])
-        col += 1
-        sh.write(ind, col, val[1][0])
-        col += 1
-        sh.write(ind, col, val[1][1])
-        col += 1
-        sh.write(ind, col, val[1][2])
-        col += 1
-        sh.write(ind, col, val[2][0])
-        col += 1
-        sh.write(ind, col, val[2][1])
-        col += 1
-        sh.write(ind, col, val[2][2])
-        col += 1
+        sh_tp.write(ind, 3, val[0][0])
+
+        sh_tp.write(ind, 4, val[0][1])
+
+        sh_tp.write(ind, 5, val[0][2])
+
+        sh_tp.write(ind, 6, val[1][0])
+
+        sh_tp.write(ind, 7, val[1][1])
+
+        sh_tp.write(ind, 8, val[1][2])
+
+        sh_tp.write(ind, 9, val[2][0])
+
+        sh_tp.write(ind, 10, val[2][1])
+
+        sh_tp.write(ind, 11, val[2][2])
+
+    sh_q = workbook.add_worksheet("joint_angles")
+    for n, v in enumerate(joint_angles):
+        sh_q.write(0, n, v)
 
     for ind, val in enumerate(joint_list, 1):
-        sh.write(ind, col, val[0])
-        col += 1
-        sh.write(ind, col, val[1])
-        col += 1
-        sh.write(ind, col, val[2])
-        col += 1
-        sh.write(ind, col, val[3])
-        col += 1
-        sh.write(ind, col, val[4])
-        col += 1
-        sh.write(ind, col, val[5])
-        col += 1
-        sh.write(ind, col, val[6])
-        col += 1
+        sh_q.write(ind, 0, val[0])
+
+        sh_q.write(ind, 1, val[1])
+
+        sh_q.write(ind, 2, val[2])
+
+        sh_q.write(ind, 3, val[3])
+
+        sh_q.write(ind, 4, val[4])
+
+        sh_q.write(ind, 5, val[5])
+
+        sh_q.write(ind, 6, val[6])
+
+    sh_cp = workbook.add_worksheet("current_pose")
+
+    for n, v in enumerate(actual_position):
+        sh_cp.write(0, n, v)
+    for n, v in enumerate(actual_orientation):
+        sh_cp.write(0, n+3, v)
 
     for ind, val in enumerate(curr_pos_list, 1):
-        sh.write(ind, col, val[0])
-        col += 1
-        sh.write(ind, col, val[1])
-        col += 1
-        sh.write(ind, col, val[2])
-        col += 1
+        sh_cp.write(ind, 0, val[0])
+
+        sh_cp.write(ind, 1, val[1])
+
+        sh_cp.write(ind, 2, val[2])
 
     for ind, val in enumerate(curr_or_list, 1):
-        sh.write(ind, col, val[0][0])
-        col += 1
-        sh.write(ind, col, val[0][1])
-        col += 1
-        sh.write(ind, col, val[0][2])
-        col += 1
-        sh.write(ind, col, val[1][0])
-        col += 1
-        sh.write(ind, col, val[1][1])
-        col += 1
-        sh.write(ind, col, val[1][2])
-        col += 1
-        sh.write(ind, col, val[2][0])
-        col += 1
-        sh.write(ind, col, val[2][1])
-        col += 1
-        sh.write(ind, col, val[2][2])
-        col += 1
+        sh_cp.write(ind, 3, val[0][0])
+        sh_cp.write(ind, 4, val[0][1])
+        sh_cp.write(ind, 5, val[0][2])
+        sh_cp.write(ind, 6, val[1][0])
+        sh_cp.write(ind, 7, val[1][1])
+        sh_cp.write(ind, 8, val[1][2])
+        sh_cp.write(ind, 9, val[2][0])
+        sh_cp.write(ind, 10, val[2][1])
+        sh_cp.write(ind, 11, val[2][2])
+
+    sh_er = workbook.add_worksheet("error")
+    for n, v in enumerate(error):
+        sh_er.write(0, n, v)
 
     for ind, val in enumerate(error_list, 1):
-        sh.write(ind, col, val[0])
-        col += 1
-        sh.write(ind, col, val[1])
-        col += 1
-        sh.write(ind, col, val[2])
-        col += 1
-        sh.write(ind, col, val[3])
-        col += 1
-        sh.write(ind, col, val[4])
-        col += 1
-        sh.write(ind, col, val[5])
-        col += 1
+        sh_er.write(ind, 0, val[0])
+
+        sh_er.write(ind, 1, val[1])
+
+        sh_er.write(ind, 2, val[2])
+
+        sh_er.write(ind, 3, val[3])
+
+        sh_er.write(ind, 4, val[4])
+
+        sh_er.write(ind, 5, val[5])
 
     workbook.close()
     return 0
 
 
-def main():
+def main(path='line'):
     rospy.init_node('kuka_node')
     rate = rospy.Rate(10)
 
@@ -149,11 +141,13 @@ def main():
     curr_or_list = []
     error_list = []
 
-    # the vertices of the square trajectory (in this case it will be a line)
-    vertices = [[-0.217, 0, 0.84], [-0.2, 0, 0.65],
-                [-0.2, 0, 0.65], [-0.217, 0, 0.84]]
-    # vertices = [[-0.217, -0.217, 0.84], [-0.217, -0.217, 0.42],
-    #             [-0.217, 0.217, 0.42], [-0.217, 0.217, 0.84]]
+    if path == 'line':
+        vertices = [[-0.217, 0, 0.84], [-0.2, 0, 0.65],
+                    [-0.2, 0, 0.65], [-0.217, 0, 0.84]]
+    elif path == 'square':
+
+        vertices = [[-0.217, -0.217, 0.84], [-0.217, -0.217, 0.42],
+                    [-0.217, 0.217, 0.42], [-0.217, 0.217, 0.84]]
 
     # the name of the robot's base frame
     base_frame = 'lwr_base_link'
@@ -221,7 +215,7 @@ def main():
             rate.sleep()
         else:
             # write to excel file
-            output(filename, 'square_pinv', points_list, r_list,
+            output(filename, points_list, r_list,
                    q_list, curr_pos_list, curr_or_list, error_list)
             print('Done')
             rospy.signal_shutdown('Done')
