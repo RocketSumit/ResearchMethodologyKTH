@@ -10,11 +10,12 @@ import numpy as np
 
 import rospy
 from square_trajectory import SquareTrajectory
+from circle_trajectory import CircularTrajectory
 import IK_functions
 from sensor_msgs.msg import JointState
 from std_srvs.srv import EmptyResponse, EmptyRequest, Empty
 
-filename = '/home/p/a/patidar/catkin_ws/src/ResearchMethodologyKTH/Data/kuka_square.xlsx'
+filename = '/home/p/a/patidar/catkin_ws/src/ResearchMethodologyKTH/Data/kuka_circle.xlsx'
 
 
 def output(filename, points_list, orientation_list, joint_list, curr_pos_list, curr_or_list, error_list):
@@ -136,7 +137,7 @@ def output(filename, points_list, orientation_list, joint_list, curr_pos_list, c
     return 0
 
 
-def main(path='square'):
+def main(path='circle'):
     rospy.init_node('kuka_node')
     rate = rospy.Rate(10)
 
@@ -154,11 +155,13 @@ def main(path='square'):
 
         vertices = [[-0.217, -0.217, 0.84], [-0.217, -0.217, 0.42],
                     [-0.217, 0.217, 0.42], [-0.217, 0.217, 0.84]]
-
+    elif path == 'circle':
+        vertices = [[-0.45, -0.3, 0.74], 0.15]   # Circular parameters
     # the name of the robot's base frame
     base_frame = 'lwr_base_link'
 
-    trajectory_publisher = SquareTrajectory(vertices, base_frame)
+    #trajectory_publisher = SquareTrajectory(vertices, base_frame)
+    trajectory_publisher = CircularTrajectory(vertices, base_frame)
     desired_orientation = [[0, 0, -1], [0, 1, 0], [1, 0, 0]]
 
     current_q = [0, 1.12, 0, 1.71, 0, 1.84, 0]
