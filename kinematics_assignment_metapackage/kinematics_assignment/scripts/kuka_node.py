@@ -14,19 +14,25 @@ import IK_functions
 from sensor_msgs.msg import JointState
 from std_srvs.srv import EmptyResponse, EmptyRequest, Empty
 
-filename = '/home/p/a/patidar/catkin_ws/src/kinematics_assignment_metapackage/kinematics_assignment/scripts/kuka_line.xlsx'
+filename = '/home/p/a/patidar/catkin_ws/src/ResearchMethodologyKTH/Data/kuka_line.xlsx'
 
 
-def output(filename, sheet, points_list, orientation_list, joint_list):
+def output(filename, sheet, points_list, orientation_list, joint_list, curr_pos_list, curr_or_list, error_list):
     workbook = xlsxwriter.Workbook(filename)
     sh = workbook.add_worksheet(sheet)
 
-    position = ['x', 'y', 'z']
+    position = ['Tx', 'Ty', 'Tz']
 
-    orientation = ['r11', 'r12', 'r13',
-                   'r21', 'r22', 'r23', 'r31', 'r32', 'r33']
+    orientation = ['Tr11', 'Tr12', 'Tr13',
+                   'Tr21', 'Tr22', 'Tr23', 'Tr31', 'Tr32', 'Tr33']
 
     joint_angles = ['q1', 'q2', 'q3', 'q4', 'q5', 'q6', 'q7']
+
+    actual_position = ['Ax', 'Ay', 'Az']
+
+    actual_orientation = ['Ar11', 'Ar12', 'Ar13',
+                          'Ar21', 'Ar22', 'Ar23', 'Ar31', 'Ar32', 'Ar33']
+    error = ['ex', 'ey', 'ez', 'etheta1', 'etheta2', 'etheta3']
 
     for n, v in enumerate(position):
         sh.write(0, n, v)
@@ -34,31 +40,99 @@ def output(filename, sheet, points_list, orientation_list, joint_list):
         sh.write(0, n+3, v)
     for n, v in enumerate(joint_angles):
         sh.write(0, n+12, v)
+    for n, v in enumerate(actual_position):
+        sh.write(0, n+19, v)
+    for n, v in enumerate(actual_orientation):
+        sh.write(0, n+22, v)
+    for n, v in enumerate(error):
+        sh.write(0, n+25, v)
 
+    col = 0
     for ind, val in enumerate(points_list, 1):
-        sh.write(ind, 0, val[0])
-        sh.write(ind, 1, val[1])
-        sh.write(ind, 2, val[2])
+        sh.write(ind, col, val[0])
+        col += 1
+        sh.write(ind, col, val[1])
+        col += 1
+        sh.write(ind, col, val[2])
+        col += 1
 
     for ind, val in enumerate(orientation_list, 1):
-        sh.write(ind, 3, val[0][0])
-        sh.write(ind, 4, val[0][1])
-        sh.write(ind, 5, val[0][2])
-        sh.write(ind, 6, val[1][0])
-        sh.write(ind, 7, val[1][1])
-        sh.write(ind, 8, val[1][2])
-        sh.write(ind, 9, val[2][0])
-        sh.write(ind, 10, val[2][1])
-        sh.write(ind, 11, val[2][2])
+        sh.write(ind, col, val[0][0])
+        col += 1
+        sh.write(ind, col, val[0][1])
+        col += 1
+        sh.write(ind, col, val[0][2])
+        col += 1
+        sh.write(ind, col, val[1][0])
+        col += 1
+        sh.write(ind, col, val[1][1])
+        col += 1
+        sh.write(ind, col, val[1][2])
+        col += 1
+        sh.write(ind, col, val[2][0])
+        col += 1
+        sh.write(ind, col, val[2][1])
+        col += 1
+        sh.write(ind, col, val[2][2])
+        col += 1
 
     for ind, val in enumerate(joint_list, 1):
-        sh.write(ind, 12, val[0])
-        sh.write(ind, 13, val[1])
-        sh.write(ind, 14, val[2])
-        sh.write(ind, 15, val[3])
-        sh.write(ind, 16, val[4])
-        sh.write(ind, 17, val[5])
-        sh.write(ind, 18, val[6])
+        sh.write(ind, col, val[0])
+        col += 1
+        sh.write(ind, col, val[1])
+        col += 1
+        sh.write(ind, col, val[2])
+        col += 1
+        sh.write(ind, col, val[3])
+        col += 1
+        sh.write(ind, col, val[4])
+        col += 1
+        sh.write(ind, col, val[5])
+        col += 1
+        sh.write(ind, col, val[6])
+        col += 1
+
+    for ind, val in enumerate(curr_pos_list, 1):
+        sh.write(ind, col, val[0])
+        col += 1
+        sh.write(ind, col, val[1])
+        col += 1
+        sh.write(ind, col, val[2])
+        col += 1
+
+    for ind, val in enumerate(curr_or_list, 1):
+        sh.write(ind, col, val[0][0])
+        col += 1
+        sh.write(ind, col, val[0][1])
+        col += 1
+        sh.write(ind, col, val[0][2])
+        col += 1
+        sh.write(ind, col, val[1][0])
+        col += 1
+        sh.write(ind, col, val[1][1])
+        col += 1
+        sh.write(ind, col, val[1][2])
+        col += 1
+        sh.write(ind, col, val[2][0])
+        col += 1
+        sh.write(ind, col, val[2][1])
+        col += 1
+        sh.write(ind, col, val[2][2])
+        col += 1
+
+    for ind, val in enumerate(error_list, 1):
+        sh.write(ind, col, val[0])
+        col += 1
+        sh.write(ind, col, val[1])
+        col += 1
+        sh.write(ind, col, val[2])
+        col += 1
+        sh.write(ind, col, val[3])
+        col += 1
+        sh.write(ind, col, val[4])
+        col += 1
+        sh.write(ind, col, val[5])
+        col += 1
 
     workbook.close()
     return 0
@@ -71,6 +145,10 @@ def main():
     points_list = []
     q_list = []
     r_list = []
+    curr_pos_list = []
+    curr_or_list = []
+    error_list = []
+
     # the vertices of the square trajectory (in this case it will be a line)
     vertices = [[-0.217, 0, 0.84], [-0.2, 0, 0.65],
                 [-0.2, 0, 0.65], [-0.217, 0, 0.84]]
@@ -115,29 +193,36 @@ def main():
     restart(EmptyRequest())
 
     rate.sleep()
-    index = 1
+
     while not rospy.is_shutdown():
         # get the current point in the trajectory
         point = trajectory_publisher.get_point()
         if point is not None:
             # get the IK solution for this point
-            q = IK_functions.kuka_IK(point, desired_orientation, current_q)
+            q, cur_pos, cur_or, err = IK_functions.kuka_IK(
+                point, desired_orientation, current_q)
+
             current_q = q
             points_list.append(point)
             r_list.append(desired_orientation)
             q_list.append(q)
+            curr_pos_list.append(cur_pos)
+            curr_or_list.append(cur_or)
+            error_list.append(err)
+
             q_msg = [q[0], 0, q[1], 0, q[2], 0,
                      q[3], 0, q[4], 0, q[5], 0, q[6], 0]
             # publish this solution
             joint_msg.position = q_msg
             publisher.publish(joint_msg)
-            index += 1
+
             # publish the path to be visualized in rviz
             trajectory_publisher.publish_path()
             rate.sleep()
         else:
             # write to excel file
-            output(filename, 'square_pinv', points_list, r_list, q_list)
+            output(filename, 'square_pinv', points_list, r_list,
+                   q_list, curr_pos_list, curr_or_list, error_list)
             print('Done')
             rospy.signal_shutdown('Done')
 

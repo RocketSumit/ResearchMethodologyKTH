@@ -208,4 +208,4 @@ def kuka_IK(point, R, joint_positions):
     # print('final q:\n', q)
     # print('\n\n')
 
-    return q
+    return q, current_pos, current_orientation, error
