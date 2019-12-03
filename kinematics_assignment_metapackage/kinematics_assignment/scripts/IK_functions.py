@@ -5,6 +5,8 @@ import numpy as np
     # {student full name} Sumit Patidar
     # {student email} patidar@kth.se
 """
+iter_methods = ["svd", "transpose", "pseudo"]
+method = iter_methods[2]
 
 
 def scara_IK(point):
@@ -31,7 +33,7 @@ def scara_IK(point):
 
         # condition check - uncomment if needed
         # if np.absolute(c2) > 1:
-        #print('No soln exist as cos(theta2) is out of range.')
+        # print('No soln exist as cos(theta2) is out of range.')
 
         s2 = np.sqrt(1 - np.square(c2))
 
@@ -75,10 +77,7 @@ def GetOrientationError(R_e, R_d):
 
 
 def GetJacobianInverse_pseduo(J):
-    J_t = np.transpose(J)
-    print(np.linalg.det(np.matmul(J_t, J)))
-    J_inv = np.matmul(np.linalg.inv(np.matmul(J_t, J)), J_t)
-    return J_inv
+    return np.matmul(np.linalg.inv(np.matmul(J.T, J)), J.T)
 
 
 def get_alpha(error, jacob):
@@ -89,11 +88,11 @@ def get_alpha(error, jacob):
     num = np.dot(error, x)
     den = np.dot(x, x)
     alpha = num/den
-    #print('alpha: ', alpha)
+    # print('alpha: ', alpha)
     return alpha
 
 
-def kuka_IK(point, R, joint_positions):
+def kuka_IK(point, R, joint_positions, er_threshold):
     x = point[0]
     y = point[1]
     z = point[2]
@@ -113,20 +112,20 @@ def kuka_IK(point, R, joint_positions):
     a = np.zeros(7)
     links = 7
 
-    error_threshold = 0.1
+    error_threshold = er_threshold
     max_iterations = 10
     current_iteration = 0
 
     # set desired position
     desired_pos = np.zeros((3, 1))
     desired_pos[0:3, 0] = point  # check if the point format is correct ?
-    #desired_angles = GetEulerAngles2(R)
-    #desired_angles = rotationMatrixToEulerAngles(R)
-    #desired_pos[3:6,0] = desired_angles
+    # desired_angles = GetEulerAngles2(R)
+    # desired_angles = rotationMatrixToEulerAngles(R)
+    # desired_pos[3:6,0] = desired_angles
 
     while True:
         current_iteration = current_iteration + 1
-        #print('Iteration: ', current_iteration)
+        # print('Iteration: ', current_iteration)
 
         # carry out transformation
         T = []
@@ -134,9 +133,9 @@ def kuka_IK(point, R, joint_positions):
         for i in range(links):
             T_temp = np.array([[np.cos(q[i]), -np.sin(q[i])*np.cos(alpha[i]), np.sin(q[i])*np.sin(alpha[i]), a[i]*np.cos(q[i])], [np.sin(q[i]), np.cos(q[i])*np.cos(alpha[i]), -np.cos(q[i])*np.sin(alpha[i]), a[i]*np.sin(q[i])],
                                [0.0, np.sin(alpha[i]), np.cos(alpha[i]), d[i]], [0.0, 0.0, 0.0, 1]])
-            #print('t', T_temp)
+            # print('t', T_temp)
             T_trans = np.matmul(T_trans, T_temp)
-            #print('T trans',T_trans)
+            # print('T trans',T_trans)
             T.append(T_trans)
             # print('T',T[i])
 
@@ -160,25 +159,25 @@ def kuka_IK(point, R, joint_positions):
             j_col = np.array(
                 [[np.cross(z[l].T, (p[links] - p[l]).T, axisc=0)], [z[l]]])
             j_col = np.reshape(j_col, (1, 6))
-            #print('j col',j_col)
+            # print('j col',j_col)
             jacob[:, l] = j_col
 
-        #print('Jacobian matrix: \n', jacob)
+        # print('Jacobian matrix: \n', jacob)
 
         # get current position
         current_orientation = T[6][:3, :3]
-        #current_angles = GetEulerAngles2(current_orientation)
+        # current_angles = GetEulerAngles2(current_orientation)
 
         current_pos = np.zeros((3, 1))
         current_pos[0:3, 0] = p[7].reshape(3)
 
-        #print('desired pos: ', np.around(desired_pos.T,3))
-        #print('current pos: ', np.around(current_pos.T,3))
+        # print('desired pos: ', np.around(desired_pos.T,3))
+        # print('current pos: ', np.around(current_pos.T,3))
 
-        #current_angles = rotationMatrixToEulerAngles(current_orientation)
+        # current_angles = rotationMatrixToEulerAngles(current_orientation)
         pos_diff = desired_pos - current_pos
         pos_error = pos_diff[:3, 0]
-        #print('pos error', pos_error)
+        # print('pos error', pos_error)
 
         # compute error between the desired and current joint position
         or_error = GetOrientationError(current_orientation, R)
@@ -187,22 +186,29 @@ def kuka_IK(point, R, joint_positions):
         error[0:3] = pos_error
         error[3:6] = or_error
         error = error.reshape((6, 1))
-        #print('error: ', np.around(error.T,3))
+        # print('error: ', np.around(error.T,3))
 
-        # compute inverse of jacobian using svd
-        #jacob_inv = GetJacobianInverse_SVD(jacob)
-        #jacob_inv = GetJacobianInverse_pseduo(jacob)
-        #jacob_inv = get_alpha(error, jacob)*jacob.T
-        jacob_inv = np.linalg.pinv(jacob)
+        jacob_inv = None
+        if method == "svd":
+            jacob_inv = GetJacobianInverse_SVD(jacob)
+
+        elif method == "transpose":
+            jacob_inv = get_alpha(error, jacob)*jacob.T
+
+        elif method == "pseudo":
+            jacob_inv = np.linalg.pinv(jacob)
+            #jacob_inv = GetJacobianInverse_pseduo(jacob)
+
         # compute the new joint parameters
         dq = np.matmul(jacob_inv, error)
         q = q + dq.reshape(7)  # update
-        #print('new joint parameters: ',q)
+        # print('new joint parameters: ',q)
 
         e = np.linalg.norm(np.matmul(jacob, dq) - error)
-        #print('e: ', e)
+        # print('e: ', e)
 
-        if (np.linalg.norm(error) <= error_threshold) or (current_iteration == max_iterations):
+        # or (current_iteration == max_iterations):
+        if (np.linalg.norm(error) <= error_threshold):
             break
 
     # print('final q:\n', q)

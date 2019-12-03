@@ -1,6 +1,8 @@
 #! /usr/bin/env python
 import xlsxwriter
 import numpy as np
+import time
+from IK_functions import method
 
 """
     This node publishes the joint states to make a given trajectory with the KUKA's end-effector
@@ -15,10 +17,10 @@ import IK_functions
 from sensor_msgs.msg import JointState
 from std_srvs.srv import EmptyResponse, EmptyRequest, Empty
 
-filename = '/home/p/a/patidar/catkin_ws/src/ResearchMethodologyKTH/Data/kuka_circle.xlsx'
 
-
-def output(filename, points_list, orientation_list, joint_list, curr_pos_list, curr_or_list, error_list):
+def output(points_list, orientation_list, joint_list, curr_pos_list, curr_or_list, error_list, threshold):
+    filename = '/home/p/a/patidar/catkin_ws/src/ResearchMethodologyKTH/Data/' + \
+        path_type + '_' + method + '_' + str(threshold) + '.xlsx'
     workbook = xlsxwriter.Workbook(filename)
     sh_tp = workbook.add_worksheet("target_pose")
     cell_format_pos = workbook.add_format(
@@ -137,7 +139,24 @@ def output(filename, points_list, orientation_list, joint_list, curr_pos_list, c
     return 0
 
 
-def main(path='circle'):
+def output_tolerance(method, tolerance_list, time_list):
+    filename = '/home/p/a/patidar/catkin_ws/src/ResearchMethodologyKTH/Data/' + \
+        path_type + '_' + method + '_ToleranceVsTime.xlsx'
+    workbook = xlsxwriter.Workbook(filename)
+    sh = workbook.add_worksheet(method)
+    sh.write(0, 0, "tolerance")
+    sh.write(0, 1, "time")
+
+    for n, v in enumerate(tolerance_list):
+        sh.write(1+n, 0, v)
+    for n, v in enumerate(time_list):
+        sh.write(1+n, 1, v)
+
+    workbook.close()
+    return 0
+
+
+def main(path):
     rospy.init_node('kuka_node')
     rate = rospy.Rate(10)
 
@@ -148,20 +167,23 @@ def main(path='circle'):
     curr_or_list = []
     error_list = []
 
+    trajectory_publisher = None
+    # the name of the robot's base frame
+    base_frame = 'lwr_base_link'
+
     if path == 'line':
         vertices = [[-0.217, 0, 0.84], [-0.2, 0, 0.65],
                     [-0.2, 0, 0.65], [-0.217, 0, 0.84]]
+        trajectory_publisher = SquareTrajectory(vertices, base_frame)
     elif path == 'square':
 
         vertices = [[-0.217, -0.217, 0.84], [-0.217, -0.217, 0.42],
                     [-0.217, 0.217, 0.42], [-0.217, 0.217, 0.84]]
+        trajectory_publisher = SquareTrajectory(vertices, base_frame)
     elif path == 'circle':
         vertices = [[-0.45, -0.3, 0.74], 0.15]   # Circular parameters
-    # the name of the robot's base frame
-    base_frame = 'lwr_base_link'
+        trajectory_publisher = CircularTrajectory(vertices, base_frame)
 
-    #trajectory_publisher = SquareTrajectory(vertices, base_frame)
-    trajectory_publisher = CircularTrajectory(vertices, base_frame)
     desired_orientation = [[0, 0, -1], [0, 1, 0], [1, 0, 0]]
 
     current_q = [0, 1.12, 0, 1.71, 0, 1.84, 0]
@@ -179,6 +201,7 @@ def main(path='circle'):
     publisher = rospy.Publisher(topic_name, JointState, queue_size=10)
 
     # A service is used to restart the trajectory execution and reload a new solution to test
+
     def restart(req):
         reload(IK_functions)
         current_q[0:7] = [0, 1.12, 0, 1.71, 0, 1.84, 0]
@@ -193,42 +216,57 @@ def main(path='circle'):
 
     s = rospy.Service('restart', Empty, restart)
 
-    restart(EmptyRequest())
+    threshold_list = [1e0, 1e-1, 1e-2, 1e-3, 1e-4, 1e-5, 1e-6]
+    time_list = []
+    for i in range(len(threshold_list)):
+        restart(EmptyRequest())
+        rate.sleep()
+        error_threshold = threshold_list[i]
+        done = False
+        start_time = time.time()
+        while not done:
 
-    rate.sleep()
+            # get the current point in the trajectory
+            point = trajectory_publisher.get_point()
+            if point is not None:
+                # get the IK solution for this point
+                q, cur_pos, cur_or, err = IK_functions.kuka_IK(
+                    point, desired_orientation, current_q, error_threshold)
 
-    while not rospy.is_shutdown():
-        # get the current point in the trajectory
-        point = trajectory_publisher.get_point()
-        if point is not None:
-            # get the IK solution for this point
-            q, cur_pos, cur_or, err = IK_functions.kuka_IK(
-                point, desired_orientation, current_q)
+                current_q = q
+                points_list.append(point)
+                r_list.append(desired_orientation)
+                q_list.append(q)
+                curr_pos_list.append(cur_pos)
+                curr_or_list.append(cur_or)
+                error_list.append(err)
 
-            current_q = q
-            points_list.append(point)
-            r_list.append(desired_orientation)
-            q_list.append(q)
-            curr_pos_list.append(cur_pos)
-            curr_or_list.append(cur_or)
-            error_list.append(err)
+                q_msg = [q[0], 0, q[1], 0, q[2], 0,
+                         q[3], 0, q[4], 0, q[5], 0, q[6], 0]
+                # publish this solution
+                joint_msg.position = q_msg
+                publisher.publish(joint_msg)
 
-            q_msg = [q[0], 0, q[1], 0, q[2], 0,
-                     q[3], 0, q[4], 0, q[5], 0, q[6], 0]
-            # publish this solution
-            joint_msg.position = q_msg
-            publisher.publish(joint_msg)
+                # publish the path to be visualized in rviz
+                trajectory_publisher.publish_path()
+                rate.sleep()
+            else:
+                end_time = time.time()
+                running_time = (end_time - start_time)
+                print("Running time: ", running_time)
+                time_list.append(running_time)
+                # write to excel file
+                output(points_list, r_list,
+                       q_list, curr_pos_list, curr_or_list, error_list, error_threshold)
 
-            # publish the path to be visualized in rviz
-            trajectory_publisher.publish_path()
-            rate.sleep()
-        else:
-            # write to excel file
-            output(filename, points_list, r_list,
-                   q_list, curr_pos_list, curr_or_list, error_list)
-            print('Done')
-            rospy.signal_shutdown('Done')
+                print('Done')
+                done = True
+                # rospy.signal_shutdown('Done')
+    output_tolerance(method, threshold_list, time_list)
 
 
 if __name__ == '__main__':
-    main()
+    global path_type
+    path_type = "circle"
+
+    main(path_type)
