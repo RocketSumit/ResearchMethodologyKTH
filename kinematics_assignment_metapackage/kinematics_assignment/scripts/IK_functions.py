@@ -6,7 +6,7 @@ import numpy as np
     # {student email} patidar@kth.se
 """
 iter_methods = ["svd", "transpose", "pseudo"]
-method = iter_methods[2]
+method = iter_methods[1]
 
 
 def scara_IK(point):
@@ -77,7 +77,9 @@ def GetOrientationError(R_e, R_d):
 
 
 def GetJacobianInverse_pseduo(J):
-    return np.matmul(np.linalg.inv(np.matmul(J.T, J)), J.T)
+    a = np.matmul(J, J.T)
+    a_inv = np.linalg.inv(a)
+    return np.matmul(J.T, a_inv)
 
 
 def get_alpha(error, jacob):
@@ -85,8 +87,8 @@ def get_alpha(error, jacob):
     x = np.matmul(x, error)
     x = x.reshape(6)
     error = error.reshape(6)
-    num = np.dot(error, x)
-    den = np.dot(x, x)
+    num = np.inner(error, x)
+    den = np.inner(x, x)
     alpha = num/den
     # print('alpha: ', alpha)
     return alpha
@@ -194,10 +196,11 @@ def kuka_IK(point, R, joint_positions, er_threshold):
 
         elif method == "transpose":
             jacob_inv = get_alpha(error, jacob)*jacob.T
+            #jacob_inv = jacob.T
 
         elif method == "pseudo":
-            jacob_inv = np.linalg.pinv(jacob)
-            #jacob_inv = GetJacobianInverse_pseduo(jacob)
+            #jacob_inv = np.linalg.pinv(jacob)
+            jacob_inv = GetJacobianInverse_pseduo(jacob)
 
         # compute the new joint parameters
         dq = np.matmul(jacob_inv, error)
@@ -206,7 +209,6 @@ def kuka_IK(point, R, joint_positions, er_threshold):
 
         e = np.linalg.norm(np.matmul(jacob, dq) - error)
         # print('e: ', e)
-
         # or (current_iteration == max_iterations):
         if (np.linalg.norm(error) <= error_threshold):
             break
@@ -214,4 +216,4 @@ def kuka_IK(point, R, joint_positions, er_threshold):
     # print('final q:\n', q)
     # print('\n\n')
 
-    return q, current_pos, current_orientation, error
+    return np.array(q, dtype=np.float32), np.array(current_pos, dtype=np.float32), np.array(current_orientation, dtype=np.float32), np.array(error, dtype=np.float32)
