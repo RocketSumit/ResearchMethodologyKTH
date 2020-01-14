@@ -1,12 +1,13 @@
 #! /usr/bin/env python3
 import numpy as np
+import time
 
 """
     # {student full name} Sumit Patidar
     # {student email} patidar@kth.se
 """
 iter_methods = ["svd", "transpose", "pseudo"]
-method = iter_methods[1]
+method = iter_methods[2]
 
 
 def scara_IK(point):
@@ -95,6 +96,7 @@ def get_alpha(error, jacob):
 
 
 def kuka_IK(point, R, joint_positions, er_threshold):
+    start_time = time.time()
     x = point[0]
     y = point[1]
     z = point[2]
@@ -196,10 +198,9 @@ def kuka_IK(point, R, joint_positions, er_threshold):
 
         elif method == "transpose":
             jacob_inv = get_alpha(error, jacob)*jacob.T
-            #jacob_inv = jacob.T
 
         elif method == "pseudo":
-            #jacob_inv = np.linalg.pinv(jacob)
+            # jacob_inv = np.linalg.pinv(jacob)
             jacob_inv = GetJacobianInverse_pseduo(jacob)
 
         # compute the new joint parameters
@@ -207,13 +208,15 @@ def kuka_IK(point, R, joint_positions, er_threshold):
         q = q + dq.reshape(7)  # update
         # print('new joint parameters: ',q)
 
-        e = np.linalg.norm(np.matmul(jacob, dq) - error)
+        # e = np.linalg.norm(np.matmul(jacob, dq) - error)
         # print('e: ', e)
         # or (current_iteration == max_iterations):
         if (np.linalg.norm(error) <= error_threshold):
+            # print('iterations: ', 'current tolerance: ', 'given tolerance',
+            # current_iteration, np.linalg.norm(error), error_threshold)
             break
 
     # print('final q:\n', q)
     # print('\n\n')
 
-    return np.array(q, dtype=np.float32), np.array(current_pos, dtype=np.float32), np.array(current_orientation, dtype=np.float32), np.array(error, dtype=np.float32)
+    return np.array(q, dtype=np.float32), np.array(current_pos, dtype=np.float32), np.array(current_orientation, dtype=np.float32), np.array(error, dtype=np.float32), current_iteration, (time.time() - start_time)*1000

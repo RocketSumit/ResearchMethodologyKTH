@@ -3,6 +3,7 @@ import xlsxwriter
 import numpy as np
 import time
 from IK_functions import method
+import os
 
 """
     This node publishes the joint states to make a given trajectory with the KUKA's end-effector
@@ -17,9 +18,12 @@ import IK_functions
 from sensor_msgs.msg import JointState
 from std_srvs.srv import EmptyResponse, EmptyRequest, Empty
 
+dirName = '/home/p/a/patidar/catkin_ws/src/ResearchMethodologyKTH/Data20200114/' + \
+    method
 
-def output(points_list, orientation_list, joint_list, curr_pos_list, curr_or_list, error_list, threshold):
-    filename = '/home/p/a/patidar/catkin_ws/src/ResearchMethodologyKTH/Data/' + \
+
+def output(points_list, orientation_list, joint_list, curr_pos_list, curr_or_list, error_list, threshold, iteration_count_list, time_to_compute_joint_angles):
+    filename = dirName + '/' + \
         path_type + '_' + method + '_' + str(threshold) + '.xlsx'
     workbook = xlsxwriter.Workbook(filename)
     sh_tp = workbook.add_worksheet("target_pose")
@@ -41,7 +45,8 @@ def output(points_list, orientation_list, joint_list, curr_pos_list, curr_or_lis
 
     actual_orientation = ['r11', 'r12', 'r13',
                           'r21', 'r22', 'r23', 'r31', 'r32', 'r33']
-    error = ['ex', 'ey', 'ez', 'etheta1', 'etheta2', 'etheta3']
+    error = ['ex', 'ey', 'ez', 'etheta1', 'etheta2',
+             'etheta3', 'tolerance (m)', 'iterations', 'time to compute joint angle (ms)']
 
     for n, v in enumerate(position):
         sh_tp.write(0, n, v, cell_format_pos)
@@ -135,22 +140,33 @@ def output(points_list, orientation_list, joint_list, curr_pos_list, curr_or_lis
 
         sh_er.write(ind, 5, val[5])
 
+        sh_er.write(ind, 6, np.linalg.norm(val))
+
+    for ind, val in enumerate(iteration_count_list, 1):
+        sh_er.write(ind, 7, val)
+
+    for ind, val in enumerate(time_to_compute_joint_angles, 1):
+        sh_er.write(ind, 8, val)
+
     workbook.close()
     return 0
 
 
-def output_tolerance(method, tolerance_list, time_list):
-    filename = '/home/p/a/patidar/catkin_ws/src/ResearchMethodologyKTH/Data/' + \
+def output_tolerance(method, tolerance_list, time_list, avg_time_to_compute_joint_angles):
+    filename = dirName + '/' + \
         path_type + '_' + method + '_ToleranceVsTime.xlsx'
     workbook = xlsxwriter.Workbook(filename)
     sh = workbook.add_worksheet(method)
-    sh.write(0, 0, "tolerance")
-    sh.write(0, 1, "time")
+    sh.write(0, 0, "tolerance (m)")
+    sh.write(0, 1, "time (s)")
+    sh.write(0, 2, "computation time (ms)")
 
     for n, v in enumerate(tolerance_list):
         sh.write(1+n, 0, v)
     for n, v in enumerate(time_list):
         sh.write(1+n, 1, v)
+    for n, v in enumerate(avg_time_to_compute_joint_angles):
+        sh.write(1+n, 2, v)
 
     workbook.close()
     return 0
@@ -166,6 +182,8 @@ def main(path):
     curr_pos_list = []
     curr_or_list = []
     error_list = []
+    iteration_count_list = []
+    time_to_compute_joint_angles = []
 
     trajectory_publisher = None
     # the name of the robot's base frame
@@ -218,8 +236,18 @@ def main(path):
 
     threshold_list = [1e0, 1e-1, 1e-2, 1e-3, 1e-4, 1e-5, 1e-6]
     time_list = []
+    avg_time_to_compute_joint_angles = []  # time taken to compute each joint angle
     for i in range(len(threshold_list)):
-        restart(EmptyRequest())
+        points_list = []
+        q_list = []
+        r_list = []
+        curr_pos_list = []
+        curr_or_list = []
+        error_list = []
+        iteration_count_list = []
+        time_to_compute_joint_angles = []
+        trajectory_publisher.restart()
+        trajectory_publisher.publish_path()
         rate.sleep()
         error_threshold = threshold_list[i]
         done = False
@@ -230,7 +258,7 @@ def main(path):
             point = trajectory_publisher.get_point()
             if point is not None:
                 # get the IK solution for this point
-                q, cur_pos, cur_or, err = IK_functions.kuka_IK(
+                q, cur_pos, cur_or, err, i_count, it_time = IK_functions.kuka_IK(
                     point, desired_orientation, current_q, error_threshold)
 
                 current_q = q
@@ -240,6 +268,8 @@ def main(path):
                 curr_pos_list.append(cur_pos)
                 curr_or_list.append(cur_or)
                 error_list.append(err)
+                iteration_count_list.append(i_count)
+                time_to_compute_joint_angles.append(it_time)
 
                 q_msg = [q[0], 0, q[1], 0, q[2], 0,
                          q[3], 0, q[4], 0, q[5], 0, q[6], 0]
@@ -255,17 +285,26 @@ def main(path):
                 running_time = (end_time - start_time)
                 print("Running time: ", running_time)
                 time_list.append(running_time)
+                avg_time_to_compute_joint_angles.append(
+                    np.mean(time_to_compute_joint_angles))
                 # write to excel file
                 output(points_list, r_list,
-                       q_list, curr_pos_list, curr_or_list, error_list, error_threshold)
+                       q_list, curr_pos_list, curr_or_list, error_list, error_threshold, iteration_count_list, time_to_compute_joint_angles)
 
                 print('Done')
                 done = True
                 # rospy.signal_shutdown('Done')
-    output_tolerance(method, threshold_list, time_list)
+    output_tolerance(method, threshold_list, time_list,
+                     avg_time_to_compute_joint_angles)
 
 
 if __name__ == '__main__':
+    # Create target Directory if don't exist
+    if not os.path.exists(dirName):
+        os.mkdir(dirName)
+        print("Directory ", dirName,  " Created ")
+    else:
+        print("Directory ", dirName,  " already exists")
     global path_type
     path_type = "circle"
 
