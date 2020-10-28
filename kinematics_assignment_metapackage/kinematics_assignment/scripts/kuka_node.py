@@ -1,6 +1,9 @@
 #! /usr/bin/env python
 import xlsxwriter
 import numpy as np
+import time
+from IK_functions import method
+import os
 
 """
     This node publishes the joint states to make a given trajectory with the KUKA's end-effector
@@ -10,77 +13,195 @@ import numpy as np
 
 import rospy
 from square_trajectory import SquareTrajectory
+from circle_trajectory import CircularTrajectory
 import IK_functions
 from sensor_msgs.msg import JointState
 from std_srvs.srv import EmptyResponse, EmptyRequest, Empty
 
-filename = '/home/p/a/patidar/catkin_ws/src/kinematics_assignment_metapackage/kinematics_assignment/scripts/kuka_line.xlsx'
+dirName = '/home/p/a/patidar/catkin_ws/src/ResearchMethodologyKTH/Data20200114/' + \
+    method
 
 
-def output(filename, sheet, points_list, orientation_list, joint_list):
+def output(points_list, orientation_list, joint_list, curr_pos_list, curr_or_list, error_list, threshold, iteration_count_list, time_to_compute_joint_angles):
+    filename = dirName + '/' + \
+        path_type + '_' + method + '_' + str(threshold) + '.xlsx'
     workbook = xlsxwriter.Workbook(filename)
-    sh = workbook.add_worksheet(sheet)
+    sh_tp = workbook.add_worksheet("target_pose")
+    cell_format_pos = workbook.add_format(
+        {'bold': True, 'font_color': 'green'})
+    cell_format_or = workbook.add_format(
+        {'bold': True, 'font_color': 'red'})
+    cell_format_q = workbook.add_format(
+        {'bold': True, 'font_color': 'black'})
 
-    position = ['x', 'y', 'z']
+    position = ['Tx', 'Ty', 'Tz']
 
     orientation = ['r11', 'r12', 'r13',
                    'r21', 'r22', 'r23', 'r31', 'r32', 'r33']
 
     joint_angles = ['q1', 'q2', 'q3', 'q4', 'q5', 'q6', 'q7']
 
+    actual_position = ['Tx', 'Ty', 'Tz']
+
+    actual_orientation = ['r11', 'r12', 'r13',
+                          'r21', 'r22', 'r23', 'r31', 'r32', 'r33']
+    error = ['ex', 'ey', 'ez', 'etheta1', 'etheta2',
+             'etheta3', 'tolerance (m)', 'iterations', 'time to compute joint angle (ms)']
+
     for n, v in enumerate(position):
-        sh.write(0, n, v)
+        sh_tp.write(0, n, v, cell_format_pos)
     for n, v in enumerate(orientation):
-        sh.write(0, n+3, v)
-    for n, v in enumerate(joint_angles):
-        sh.write(0, n+12, v)
+        sh_tp.write(0, n+3, v, cell_format_or)
 
     for ind, val in enumerate(points_list, 1):
-        sh.write(ind, 0, val[0])
-        sh.write(ind, 1, val[1])
-        sh.write(ind, 2, val[2])
+        sh_tp.write(ind, 0, val[0])
+
+        sh_tp.write(ind, 1, val[1])
+
+        sh_tp.write(ind, 2, val[2])
 
     for ind, val in enumerate(orientation_list, 1):
-        sh.write(ind, 3, val[0][0])
-        sh.write(ind, 4, val[0][1])
-        sh.write(ind, 5, val[0][2])
-        sh.write(ind, 6, val[1][0])
-        sh.write(ind, 7, val[1][1])
-        sh.write(ind, 8, val[1][2])
-        sh.write(ind, 9, val[2][0])
-        sh.write(ind, 10, val[2][1])
-        sh.write(ind, 11, val[2][2])
+        sh_tp.write(ind, 3, val[0][0])
+
+        sh_tp.write(ind, 4, val[0][1])
+
+        sh_tp.write(ind, 5, val[0][2])
+
+        sh_tp.write(ind, 6, val[1][0])
+
+        sh_tp.write(ind, 7, val[1][1])
+
+        sh_tp.write(ind, 8, val[1][2])
+
+        sh_tp.write(ind, 9, val[2][0])
+
+        sh_tp.write(ind, 10, val[2][1])
+
+        sh_tp.write(ind, 11, val[2][2])
+
+    sh_q = workbook.add_worksheet("joint_angles")
+    for n, v in enumerate(joint_angles):
+        sh_q.write(0, n, v, cell_format_q)
 
     for ind, val in enumerate(joint_list, 1):
-        sh.write(ind, 12, val[0])
-        sh.write(ind, 13, val[1])
-        sh.write(ind, 14, val[2])
-        sh.write(ind, 15, val[3])
-        sh.write(ind, 16, val[4])
-        sh.write(ind, 17, val[5])
-        sh.write(ind, 18, val[6])
+        sh_q.write(ind, 0, val[0])
+
+        sh_q.write(ind, 1, val[1])
+
+        sh_q.write(ind, 2, val[2])
+
+        sh_q.write(ind, 3, val[3])
+
+        sh_q.write(ind, 4, val[4])
+
+        sh_q.write(ind, 5, val[5])
+
+        sh_q.write(ind, 6, val[6])
+
+    sh_cp = workbook.add_worksheet("current_pose")
+
+    for n, v in enumerate(actual_position):
+        sh_cp.write(0, n, v, cell_format_pos)
+    for n, v in enumerate(actual_orientation):
+        sh_cp.write(0, n+3, v, cell_format_or)
+
+    for ind, val in enumerate(curr_pos_list, 1):
+        sh_cp.write(ind, 0, val[0])
+
+        sh_cp.write(ind, 1, val[1])
+
+        sh_cp.write(ind, 2, val[2])
+
+    for ind, val in enumerate(curr_or_list, 1):
+        sh_cp.write(ind, 3, val[0][0])
+        sh_cp.write(ind, 4, val[0][1])
+        sh_cp.write(ind, 5, val[0][2])
+        sh_cp.write(ind, 6, val[1][0])
+        sh_cp.write(ind, 7, val[1][1])
+        sh_cp.write(ind, 8, val[1][2])
+        sh_cp.write(ind, 9, val[2][0])
+        sh_cp.write(ind, 10, val[2][1])
+        sh_cp.write(ind, 11, val[2][2])
+
+    sh_er = workbook.add_worksheet("error")
+    for n, v in enumerate(error):
+        sh_er.write(0, n, v, cell_format_or)
+
+    for ind, val in enumerate(error_list, 1):
+        sh_er.write(ind, 0, val[0])
+
+        sh_er.write(ind, 1, val[1])
+
+        sh_er.write(ind, 2, val[2])
+
+        sh_er.write(ind, 3, val[3])
+
+        sh_er.write(ind, 4, val[4])
+
+        sh_er.write(ind, 5, val[5])
+
+        sh_er.write(ind, 6, np.linalg.norm(val))
+
+    for ind, val in enumerate(iteration_count_list, 1):
+        sh_er.write(ind, 7, val)
+
+    for ind, val in enumerate(time_to_compute_joint_angles, 1):
+        sh_er.write(ind, 8, val)
 
     workbook.close()
     return 0
 
 
-def main():
+def output_tolerance(method, tolerance_list, time_list, avg_time_to_compute_joint_angles):
+    filename = dirName + '/' + \
+        path_type + '_' + method + '_ToleranceVsTime.xlsx'
+    workbook = xlsxwriter.Workbook(filename)
+    sh = workbook.add_worksheet(method)
+    sh.write(0, 0, "tolerance (m)")
+    sh.write(0, 1, "time (s)")
+    sh.write(0, 2, "computation time (ms)")
+
+    for n, v in enumerate(tolerance_list):
+        sh.write(1+n, 0, v)
+    for n, v in enumerate(time_list):
+        sh.write(1+n, 1, v)
+    for n, v in enumerate(avg_time_to_compute_joint_angles):
+        sh.write(1+n, 2, v)
+
+    workbook.close()
+    return 0
+
+
+def main(path):
     rospy.init_node('kuka_node')
     rate = rospy.Rate(10)
 
     points_list = []
     q_list = []
     r_list = []
-    # the vertices of the square trajectory (in this case it will be a line)
-    vertices = [[-0.217, 0, 0.84], [-0.2, 0, 0.65],
-                [-0.2, 0, 0.65], [-0.217, 0, 0.84]]
-    # vertices = [[-0.217, -0.217, 0.84], [-0.217, -0.217, 0.42],
-    #             [-0.217, 0.217, 0.42], [-0.217, 0.217, 0.84]]
+    curr_pos_list = []
+    curr_or_list = []
+    error_list = []
+    iteration_count_list = []
+    time_to_compute_joint_angles = []
 
+    trajectory_publisher = None
     # the name of the robot's base frame
     base_frame = 'lwr_base_link'
 
-    trajectory_publisher = SquareTrajectory(vertices, base_frame)
+    if path == 'line':
+        vertices = [[-0.217, 0, 0.84], [-0.2, 0, 0.65],
+                    [-0.2, 0, 0.65], [-0.217, 0, 0.84]]
+        trajectory_publisher = SquareTrajectory(vertices, base_frame)
+    elif path == 'square':
+
+        vertices = [[-0.217, -0.217, 0.84], [-0.217, -0.217, 0.42],
+                    [-0.217, 0.217, 0.42], [-0.217, 0.217, 0.84]]
+        trajectory_publisher = SquareTrajectory(vertices, base_frame)
+    elif path == 'circle':
+        vertices = [[-0.45, -0.3, 0.74], 0.15]   # Circular parameters
+        trajectory_publisher = CircularTrajectory(vertices, base_frame)
+
     desired_orientation = [[0, 0, -1], [0, 1, 0], [1, 0, 0]]
 
     current_q = [0, 1.12, 0, 1.71, 0, 1.84, 0]
@@ -98,6 +219,7 @@ def main():
     publisher = rospy.Publisher(topic_name, JointState, queue_size=10)
 
     # A service is used to restart the trajectory execution and reload a new solution to test
+
     def restart(req):
         reload(IK_functions)
         current_q[0:7] = [0, 1.12, 0, 1.71, 0, 1.84, 0]
@@ -112,35 +234,78 @@ def main():
 
     s = rospy.Service('restart', Empty, restart)
 
-    restart(EmptyRequest())
+    threshold_list = [1e0, 1e-1, 1e-2, 1e-3, 1e-4, 1e-5, 1e-6]
+    time_list = []
+    avg_time_to_compute_joint_angles = []  # time taken to compute each joint angle
+    for i in range(len(threshold_list)):
+        points_list = []
+        q_list = []
+        r_list = []
+        curr_pos_list = []
+        curr_or_list = []
+        error_list = []
+        iteration_count_list = []
+        time_to_compute_joint_angles = []
+        trajectory_publisher.restart()
+        trajectory_publisher.publish_path()
+        rate.sleep()
+        error_threshold = threshold_list[i]
+        done = False
+        start_time = time.time()
+        while not done:
 
-    rate.sleep()
-    index = 1
-    while not rospy.is_shutdown():
-        # get the current point in the trajectory
-        point = trajectory_publisher.get_point()
-        if point is not None:
-            # get the IK solution for this point
-            q = IK_functions.kuka_IK(point, desired_orientation, current_q)
-            current_q = q
-            points_list.append(point)
-            r_list.append(desired_orientation)
-            q_list.append(q)
-            q_msg = [q[0], 0, q[1], 0, q[2], 0,
-                     q[3], 0, q[4], 0, q[5], 0, q[6], 0]
-            # publish this solution
-            joint_msg.position = q_msg
-            publisher.publish(joint_msg)
-            index += 1
-            # publish the path to be visualized in rviz
-            trajectory_publisher.publish_path()
-            rate.sleep()
-        else:
-            # write to excel file
-            output(filename, 'square_pinv', points_list, r_list, q_list)
-            print('Done')
-            rospy.signal_shutdown('Done')
+            # get the current point in the trajectory
+            point = trajectory_publisher.get_point()
+            if point is not None:
+                # get the IK solution for this point
+                q, cur_pos, cur_or, err, i_count, it_time = IK_functions.kuka_IK(
+                    point, desired_orientation, current_q, error_threshold)
+
+                current_q = q
+                points_list.append(point)
+                r_list.append(desired_orientation)
+                q_list.append(q)
+                curr_pos_list.append(cur_pos)
+                curr_or_list.append(cur_or)
+                error_list.append(err)
+                iteration_count_list.append(i_count)
+                time_to_compute_joint_angles.append(it_time)
+
+                q_msg = [q[0], 0, q[1], 0, q[2], 0,
+                         q[3], 0, q[4], 0, q[5], 0, q[6], 0]
+                # publish this solution
+                joint_msg.position = q_msg
+                publisher.publish(joint_msg)
+
+                # publish the path to be visualized in rviz
+                trajectory_publisher.publish_path()
+                rate.sleep()
+            else:
+                end_time = time.time()
+                running_time = (end_time - start_time)
+                print("Running time: ", running_time)
+                time_list.append(running_time)
+                avg_time_to_compute_joint_angles.append(
+                    np.mean(time_to_compute_joint_angles))
+                # write to excel file
+                output(points_list, r_list,
+                       q_list, curr_pos_list, curr_or_list, error_list, error_threshold, iteration_count_list, time_to_compute_joint_angles)
+
+                print('Done')
+                done = True
+                # rospy.signal_shutdown('Done')
+    output_tolerance(method, threshold_list, time_list,
+                     avg_time_to_compute_joint_angles)
 
 
 if __name__ == '__main__':
-    main()
+    # Create target Directory if don't exist
+    if not os.path.exists(dirName):
+        os.mkdir(dirName)
+        print("Directory ", dirName,  " Created ")
+    else:
+        print("Directory ", dirName,  " already exists")
+    global path_type
+    path_type = "circle"
+
+    main(path_type)
